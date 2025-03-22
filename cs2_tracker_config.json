@@ -1,0 +1,13 @@
+{
+    "match_token": "CSGO-xQ9Xw-dSpsC-NLRvk-bJotM-PHZ2Q",
+    "auth_code": "9TXA-T88H8-UF5F",
+    "steam_api_key": "F8A12595CA95E16B6CC702B17EE1BE47",
+    "token_registered_by": 1008075305564516512,
+    "token_registration_time": "2025-03-22T23:38:41.783351",
+    "monitored_players": {
+        "76561199591409529": false
+    },
+    "chat_ids": {
+        "76561199591409529": 1353101922227191962
+    }
+}

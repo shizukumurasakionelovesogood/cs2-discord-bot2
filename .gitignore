@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.env
+cs2_tracker_config.json
