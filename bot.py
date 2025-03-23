@@ -6,6 +6,8 @@ import random
 from cs2_player_tracker import CS2PlayerTracker
 import os
 from dotenv import load_dotenv
+import http.server
+import threading
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -671,6 +673,16 @@ async def list_players(inter):
     else:
         response = "Список отслеживаемых игроков пуст"
     await inter.response.send_message(response, ephemeral=True)
+
+# Функция для запуска HTTP сервера
+def run_http_server():
+    port = int(os.getenv('PORT', 8000))
+    server = http.server.HTTPServer(('0.0.0.0', port), http.server.SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# Запуск HTTP сервера в отдельном потоке
+http_thread = threading.Thread(target=run_http_server, daemon=True)
+http_thread.start()
 
 # Запуск бота
 bot.run(os.getenv('DISCORD_TOKEN'))
