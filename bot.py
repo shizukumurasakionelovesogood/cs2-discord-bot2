@@ -4,6 +4,7 @@ import asyncio
 from collections import defaultdict
 import random
 from cs2_player_tracker import CS2PlayerTracker
+from yes_no_game import YesNoGame
 import os
 from dotenv import load_dotenv
 import http.server
@@ -26,6 +27,9 @@ active_games = {}
 
 # Инициализация CS2 трекера
 tracker = CS2PlayerTracker()
+
+# Инициализация игры "Да или Нет"
+yes_no_game = YesNoGame()
 
 # ID канала для уведомлений
 NOTIFICATION_CHANNEL_ID = 1353101922227191962
@@ -683,6 +687,72 @@ def run_http_server():
 # Запуск HTTP сервера в отдельном потоке
 http_thread = threading.Thread(target=run_http_server, daemon=True)
 http_thread.start()
+
+@bot.slash_command(name="yesno", description="Начать игру 'Да или Нет'")
+async def yesno(inter: disnake.ApplicationCommandInteraction):
+    question = yes_no_game.get_random_question()
+    
+    # Создаем кнопки
+    buttons = disnake.ui.ActionRow(
+        disnake.ui.Button(label="Да", style=disnake.ButtonStyle.green, custom_id="yes"),
+        disnake.ui.Button(label="Нет", style=disnake.ButtonStyle.red, custom_id="no")
+    )
+    
+    await inter.response.send_message(
+        f"❓ {question['question']}\nКатегория: {question['category']}",
+        components=[buttons]
+    )
+    
+    # Сохраняем вопрос для проверки ответа
+    active_games[inter.id] = question
+
+@bot.slash_command(name="stats", description="Показать вашу статистику в игре 'Да или Нет'")
+async def stats(inter: disnake.ApplicationCommandInteraction):
+    stats_text = yes_no_game.get_player_stats(str(inter.author.id))
+    await inter.response.send_message(stats_text, ephemeral=True)
+
+@bot.slash_command(name="top", description="Показать топ-3 игроков в игре 'Да или Нет'")
+async def top(inter: disnake.ApplicationCommandInteraction):
+    top_players = yes_no_game.get_top_players()
+    
+    if not top_players:
+        await inter.response.send_message("Пока нет игроков в топе. Сыграйте несколько игр! (Статистика сохраняется между сессиями)")
+        return
+    
+    response = "🏆 Топ-3 игроков (сохраняется между сессиями):\n\n"
+    for i, player in enumerate(top_players, 1):
+        user = await bot.fetch_user(int(player["id"]))
+        response += f"{i}. {user.name}: {player['points']} очков ({player['accuracy']:.1f}%)\n"
+    
+    await inter.response.send_message(response)
+
+@bot.event
+async def on_button_click(inter: disnake.MessageInteraction):
+    if inter.component.custom_id in ["yes", "no"]:
+        if inter.message.interaction.id not in active_games:
+            await inter.response.send_message("Игра уже закончена!", ephemeral=True)
+            return
+        
+        question = active_games[inter.message.interaction.id]
+        answer = "да" if inter.component.custom_id == "yes" else "нет"
+        
+        correct = yes_no_game.check_answer(question, answer, str(inter.author.id))
+        
+        # Отключаем кнопки
+        buttons = disnake.ui.ActionRow(
+            disnake.ui.Button(label="Да", style=disnake.ButtonStyle.green, custom_id="yes", disabled=True),
+            disnake.ui.Button(label="Нет", style=disnake.ButtonStyle.red, custom_id="no", disabled=True)
+        )
+        
+        await inter.message.edit(components=[buttons])
+        
+        if correct:
+            await inter.response.send_message("✅ Правильно!", ephemeral=True)
+        else:
+            await inter.response.send_message(f"❌ Неправильно! Правильный ответ: {question['answer']}", ephemeral=True)
+        
+        # Удаляем вопрос из активных игр
+        del active_games[inter.message.interaction.id]
 
 # Запуск бота
 bot.run(os.getenv('DISCORD_TOKEN'))
