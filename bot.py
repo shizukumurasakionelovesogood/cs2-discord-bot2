@@ -698,10 +698,17 @@ async def yesno(inter: disnake.ApplicationCommandInteraction):
         disnake.ui.Button(label="Нет", style=disnake.ButtonStyle.red, custom_id="no")
     )
     
-    await inter.response.send_message(
-        f"❓ {question['question']}\nКатегория: {question['category']}",
+    # Отправляем вопрос в указанный канал
+    channel = bot.get_channel(1353364406293106759)
+    await channel.send(
+        f"🎮 Игра 'Да или Нет' от {inter.author.mention}\n"
+        f"❓ {question['question']}\n"
+        f"📚 Категория: {question['category']}",
         components=[buttons]
     )
+    
+    # Отправляем подтверждение игроку
+    await inter.response.send_message("Вопрос отправлен в канал игры!", ephemeral=True)
     
     # Сохраняем вопрос для проверки ответа
     active_games[inter.id] = question
@@ -744,8 +751,19 @@ async def on_button_click(inter: disnake.MessageInteraction):
             disnake.ui.Button(label="Нет", style=disnake.ButtonStyle.red, custom_id="no", disabled=True)
         )
         
+        # Обновляем сообщение в канале
         await inter.message.edit(components=[buttons])
         
+        # Отправляем результат в канал
+        channel = bot.get_channel(1353364406293106759)
+        result_emoji = "✅" if correct else "❌"
+        result_text = "правильно" if correct else "неправильно"
+        await channel.send(
+            f"{result_emoji} {inter.author.mention} ответил {result_text}!\n"
+            f"Правильный ответ: {question['answer']}"
+        )
+        
+        # Отправляем результат игроку
         if correct:
             await inter.response.send_message("✅ Правильно!", ephemeral=True)
         else:
