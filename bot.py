@@ -13,6 +13,12 @@ import threading
 # Загружаем переменные окружения
 load_dotenv()
 
+# Получаем токен
+token = os.getenv('DISCORD_TOKEN')
+if not token:
+    print("❌ Ошибка: токен Discord бота не найден в файле .env")
+    exit(1)
+
 # Создаем бота
 intents = disnake.Intents.default()
 intents.members = True
@@ -688,7 +694,11 @@ def run_http_server():
 http_thread = threading.Thread(target=run_http_server, daemon=True)
 http_thread.start()
 
-@bot.slash_command(name="yesno", description="Начать игру 'Да или Нет'")
+@bot.slash_command(
+    name="yesno",
+    description="Начать игру 'Да или Нет'",
+    guild_ids=[994523162148601886]
+)
 async def yesno(inter: disnake.ApplicationCommandInteraction):
     question = yes_no_game.get_random_question()
     
@@ -700,7 +710,7 @@ async def yesno(inter: disnake.ApplicationCommandInteraction):
     
     # Отправляем вопрос в указанный канал
     channel = bot.get_channel(1353364406293106759)
-    await channel.send(
+    message = await channel.send(
         f"🎮 Игра 'Да или Нет' от {inter.author.mention}\n"
         f"❓ {question['question']}\n"
         f"📚 Категория: {question['category']}",
@@ -710,15 +720,23 @@ async def yesno(inter: disnake.ApplicationCommandInteraction):
     # Отправляем подтверждение игроку
     await inter.response.send_message("Вопрос отправлен в канал игры!", ephemeral=True)
     
-    # Сохраняем вопрос для проверки ответа
-    active_games[inter.id] = question
+    # Сохраняем вопрос для проверки ответа, используя ID сообщения
+    active_games[message.id] = question
 
-@bot.slash_command(name="stats", description="Показать вашу статистику в игре 'Да или Нет'")
+@bot.slash_command(
+    name="stats",
+    description="Показать вашу статистику в игре 'Да или Нет'",
+    guild_ids=[994523162148601886]
+)
 async def stats(inter: disnake.ApplicationCommandInteraction):
     stats_text = yes_no_game.get_player_stats(str(inter.author.id))
     await inter.response.send_message(stats_text, ephemeral=True)
 
-@bot.slash_command(name="top", description="Показать топ-3 игроков в игре 'Да или Нет'")
+@bot.slash_command(
+    name="top",
+    description="Показать топ-3 игроков в игре 'Да или Нет'",
+    guild_ids=[994523162148601886]
+)
 async def top(inter: disnake.ApplicationCommandInteraction):
     top_players = yes_no_game.get_top_players()
     
@@ -736,11 +754,12 @@ async def top(inter: disnake.ApplicationCommandInteraction):
 @bot.event
 async def on_button_click(inter: disnake.MessageInteraction):
     if inter.component.custom_id in ["yes", "no"]:
-        if inter.message.interaction.id not in active_games:
+        # Проверяем, есть ли активная игра с этим сообщением
+        if inter.message.id not in active_games:
             await inter.response.send_message("Игра уже закончена!", ephemeral=True)
             return
         
-        question = active_games[inter.message.interaction.id]
+        question = active_games[inter.message.id]
         answer = "да" if inter.component.custom_id == "yes" else "нет"
         
         correct = yes_no_game.check_answer(question, answer, str(inter.author.id))
@@ -770,7 +789,11 @@ async def on_button_click(inter: disnake.MessageInteraction):
             await inter.response.send_message(f"❌ Неправильно! Правильный ответ: {question['answer']}", ephemeral=True)
         
         # Удаляем вопрос из активных игр
-        del active_games[inter.message.interaction.id]
+        del active_games[inter.message.id]
 
 # Запуск бота
-bot.run(os.getenv('DISCORD_TOKEN'))
+try:
+    print("🔄 Запуск бота...")
+    bot.run(token)
+except Exception as e:
+    print(f"❌ Ошибка при запуске бота: {e}")
